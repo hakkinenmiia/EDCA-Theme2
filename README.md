@@ -94,8 +94,7 @@ top.var <- subset(topsoil, `Sample type` == c("topsoil site"))
 ##Mapping the measuring points 
 #get map
 #the map didn't work without API key from google maps
-?register_google
-register_google(key="AIzaSyCjGfeBRgqUCR8lOObt6p5Jau_e38BAn5c")
+
 map <- get_map(location = c(lon = mean(top.var$Long), lat = mean(top.var$Lat)), zoom = 15,
                maptype = "satellite", scale = 2) 
 
