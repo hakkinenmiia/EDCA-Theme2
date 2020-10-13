@@ -122,17 +122,20 @@ vgm = vgm(nugget=20000, psill=80000, range=2E5, model="Exp")
 ?vgm
 plot(vg, vgm)
 
+
+
 ###################
 ##SEMIVARIOGRAM 
-# loading the required packages
+#loading the required packages
 library(ggplot2)
 library(ggmap)
 library(qmplot)
 
-# data import and views
+#data import and views
+
 topsoil <- read.csv("topsoilvariability_R_GH.csv", sep=";", header=TRUE)
 names(topsoil)
-top.var <- subset(topsoil, `Sample.type` == c("topsoil site"))
+top.var <- subset(topsoil, `Sample_type` == c("topsoil_site"))
 dim(top.var)
 summary(top.var)
 hist(top.var$Cu,col='Lightblue')  # looks pretty symmetric so no need for transformation
@@ -142,80 +145,148 @@ hist(top.var$Zn,col='Orange')  # looks pretty symmetric so no need for transform
 west <- subset(top.var, Area==c("W"))
 east <- subset(top.var, Area==c("E"))
 
-# variogram computation
+
+#geographic projection
+
+library(rgdal)
 library(sp)
 library(gstat)
+library(raster)
 
-###West area, copper 
-coordinates(west) =~Lat+Long
-spplot(west, zcol="Cu")
+coordinates(top.var) =~Long+Lat
+proj4string(top.var)
+?proj4string
 
-gwCu = gstat(id = c("Cu"), formula = Cu~1, data = west)
-vgwCu = variogram(gwCu, width=2E-4,cutoff=2.4E-1)
+crs(top.var)
+crs(top.var) <- CRS("+proj=longlat +datum=WGS84")
+crs(top.var)
+str(top.var)
+spplot(top.var, zcol="Cu", scales=list(draw=TRUE))
+
+?spTransform
+
+top.var.nlgrid <- spTransform(top.var, CRS("+init=epsg:28992"))
+str(top.var.nlgrid)
+spplot(top.var.nlgrid, zcol="Cu", scales=list(draw=TRUE))
+str(top.var.nlgrid)
+summary(top.var.nlgrid@coords)
+
+
+#variography
+
+gCu = gstat(id = c("Cu"), formula = Cu~1, data = top.var.nlgrid)
+vgCu = variogram(gCu, width=20,cutoff=20000)
+plot(vgCu, plot.nu=T)
+?variogram
+
+vg = variogram(g, width = 20000, cutoff = 600000)
+plot(vg, plot.numbers = TRUE)
+
+vgm = vgm(nugget=20000, psill=80000, range=2E5, model="Exp")
+plot(vg, vgm)
+
+## West area, copper
+coordinates(west) =~Long+Lat
+proj4string(west)
+crs(west)
+crs(west) <- CRS("+proj=longlat +datum=WGS84")
+crs(west)
+str(west)
+spplot(west, zcol="Cu", scales=list(draw=TRUE))
+
+west.nlgrid <- spTransform(west, CRS("+init=epsg:28992"))
+str(west.nlgrid)
+spplot(west.nlgrid, zcol="Cu", scales=list(draw=TRUE))
+str(west.nlgrid)
+summary(west.nlgrid@coords)
+
+#variogram
+gwCu = gstat(id = c("Cu"), formula = Cu~1, data = west.nlgrid)
+vgwCu = variogram(gwCu, width=20,cutoff=2000)
 plot(vgwCu, plot.nu=TRUE)
 
 
-vgm_wcu = vgm(nugget=2, psill=28, range=0.002, model="Exp")
-
+vgm_wcu = vgm(nugget=5, psill=25, range=100, model="Exp")
 plot(vgwCu, vgm_wcu)
+
 vgm2 = fit.variogram(vgwCu, vgm_wcu)
 plot(vgwCu, vgm2)
-#parameter estimations: nugget=0, sill=30, range=0.003
+var(west$Cu) #24.86629 <- lower than in graph 
 
-var(west$Cu) #24.866 <-- lower than sill in the graph 
+west.nlgrid@data
 
-###East area, copper 
-coordinates(east) =~Lat+Long
-spplot(east, zcol="Cu")
+### East area, copper 
+coordinates(east) =~Long+Lat
+proj4string(east)
+crs(east)
+crs(east) <- CRS("+proj=longlat +datum=WGS84")
+crs(east)
+str(east)
+spplot(east, zcol="Cu", scales=list(draw=TRUE))
 
-geCu = gstat(id = c("Cu"), formula = Cu~1, data = east)
-vgeCu = variogram(geCu, width=2E-4,cutoff=2.4E-2)
+east.nlgrid <- spTransform(east, CRS("+init=epsg:28992"))
+str(east.nlgrid)
+spplot(east.nlgrid, zcol="Cu", scales=list(draw=TRUE))
+str(east.nlgrid)
+summary(east.nlgrid@coords)
+
+geCu = gstat(id = c("Cu"), formula = Cu~1, data = east.nlgrid)
+vgeCu = variogram(geCu, width=20,cutoff=2000)
 plot(vgeCu, plot.nu=TRUE)
 
 
-vgm_ecu = vgm(nugget=30, psill=120, range=0.002, model="Exp")
+vgm_ecu = vgm(nugget=30, psill=120, range=100, model="Exp")
 plot(vgeCu, vgm_ecu)
 
 vgm3 = fit.variogram(vgeCu, vgm_ecu)
 plot(vgeCu, vgm3)
-#parameter estimations: nugget=50, sill=150, range=0.003
+#parameter estimations: nugget=60, sill=?, range=?
 
-var(east$Cu) #120.223 <-- lower than in the graph 
+var(east$Cu) #120.223 
 
+# Combine the semivariograms into two 
 
-###West area, zinc
-coordinates(west) =~Lat+Long
-spplot(west, zcol="Zn")
+plot(gamma~dist, vgeCu, ylim = c(0, 1.05*max(vgeCu$gamma)),col='red', ylab =
+       'semivariance', xlab = 'distance')
+lines(variogramLine(vgm3,350), col='red')
 
-gwZn = gstat(id = c("Zn"), formula = Zn~1, data = west)
-vgwZn = variogram(gwZn, width=2E-4,cutoff=2.4E-2)
+points(gamma~dist, vgwCu, col='blue')
+lines(variogramLine(vgm2, 1500), col='blue')
+
+############################################
+### West area, zinc
+gwZn = gstat(id = c("Zn"), formula = Zn~1, data = west.nlgrid)
+vgwZn = variogram(gwZn, width=20,cutoff=5000)
 plot(vgwZn, plot.nu=TRUE)
 
 
-vgm_wzn = vgm(nugget=10, psill=1000, range=0.004, model="Exp")
-
+vgm_wzn = vgm(nugget=100, psill=400, range=100, model="Exp")
 plot(vgwZn, vgm_wzn)
+
 vgm4 = fit.variogram(vgwZn, vgm_wzn)
 plot(vgwZn, vgm4)
-#parameter estimations: nugget=0, sill=500, range=0.002
+#parameter estimations: nugget=100, sill=500, range=300
 
-var(west$Zn) #513.866 <-- same as sill in the graph 
+var(west.nlgrid$Zn) #513.866 <-- same/lower as sill in the graph 
 
-###East area, zinc
-coordinates(east) =~Lat+Long
-spplot(east, zcol="Zn")
-
-geZn = gstat(id = c("Zn"), formula = Zn~1, data = east)
-vgeZn = variogram(geZn, width=2E-4,cutoff=2.4E-2)
+### East area, zinc
+geZn = gstat(id = c("Zn"), formula = Zn~1, data = east.nlgrid)
+vgeZn = variogram(geZn, width=20,cutoff=2000)
 plot(vgeZn, plot.nu=TRUE)
 
-
-vgm_ezn = vgm(nugget=500, psill=2000, range=0.003, model="Exp")
+vgm_ezn = vgm(nugget=600, psill=1500, range=150, model="Exp")
 plot(vgeZn, vgm_ezn)
 
 vgm5 = fit.variogram(vgeZn, vgm_ezn)
 plot(vgeZn, vgm5)
-#parameter estimations: nugget=0, sill=500, range=0.002
+#parameter estimations: nugget=100, sill=520, range=300
 
-var(east$Zn) #1788.069 <-- lower as sill in the graph 
+var(east.nlgrid$Zn) #513.8668 <-- lower as sill in the graph 
 
+# Combine the semivariograms into two 
+
+plot(gamma~dist, vgeZn, ylim = c(0, 1.05*max(vgeZn$gamma)),col='red', ylab =
+       'semivariance', xlab = 'distance')
+lines(variogramLine(vgm5,350), col='red')
+points(gamma~dist, vgwZn, col='blue')
+lines(variogramLine(vgm4, 1500), col='blue')
