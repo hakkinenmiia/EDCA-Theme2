@@ -122,5 +122,100 @@ vgm = vgm(nugget=20000, psill=80000, range=2E5, model="Exp")
 ?vgm
 plot(vg, vgm)
 
+###################
+##SEMIVARIOGRAM 
+# loading the required packages
+library(ggplot2)
+library(ggmap)
+library(qmplot)
 
+# data import and views
+topsoil <- read.csv("topsoilvariability_R_GH.csv", sep=";", header=TRUE)
+names(topsoil)
+top.var <- subset(topsoil, `Sample.type` == c("topsoil site"))
+dim(top.var)
+summary(top.var)
+hist(top.var$Cu,col='Lightblue')  # looks pretty symmetric so no need for transformation
+hist(top.var$Zn,col='Orange')  # looks pretty symmetric so no need for transformation
+
+#data subsets into west and east
+west <- subset(top.var, Area==c("W"))
+east <- subset(top.var, Area==c("E"))
+
+# variogram computation
+library(sp)
+library(gstat)
+
+###West area, copper 
+coordinates(west) =~Lat+Long
+spplot(west, zcol="Cu")
+
+gwCu = gstat(id = c("Cu"), formula = Cu~1, data = west)
+vgwCu = variogram(gwCu, width=2E-4,cutoff=2.4E-1)
+plot(vgwCu, plot.nu=TRUE)
+
+
+vgm_wcu = vgm(nugget=2, psill=28, range=0.002, model="Exp")
+
+plot(vgwCu, vgm_wcu)
+vgm2 = fit.variogram(vgwCu, vgm_wcu)
+plot(vgwCu, vgm2)
+#parameter estimations: nugget=0, sill=30, range=0.003
+
+var(west$Cu) #24.866 <-- lower than sill in the graph 
+
+###East area, copper 
+coordinates(east) =~Lat+Long
+spplot(east, zcol="Cu")
+
+geCu = gstat(id = c("Cu"), formula = Cu~1, data = east)
+vgeCu = variogram(geCu, width=2E-4,cutoff=2.4E-2)
+plot(vgeCu, plot.nu=TRUE)
+
+
+vgm_ecu = vgm(nugget=30, psill=120, range=0.002, model="Exp")
+plot(vgeCu, vgm_ecu)
+
+vgm3 = fit.variogram(vgeCu, vgm_ecu)
+plot(vgeCu, vgm3)
+#parameter estimations: nugget=50, sill=150, range=0.003
+
+var(east$Cu) #120.223 <-- lower than in the graph 
+
+
+###West area, zinc
+coordinates(west) =~Lat+Long
+spplot(west, zcol="Zn")
+
+gwZn = gstat(id = c("Zn"), formula = Zn~1, data = west)
+vgwZn = variogram(gwZn, width=2E-4,cutoff=2.4E-2)
+plot(vgwZn, plot.nu=TRUE)
+
+
+vgm_wzn = vgm(nugget=10, psill=1000, range=0.004, model="Exp")
+
+plot(vgwZn, vgm_wzn)
+vgm4 = fit.variogram(vgwZn, vgm_wzn)
+plot(vgwZn, vgm4)
+#parameter estimations: nugget=0, sill=500, range=0.002
+
+var(west$Zn) #513.866 <-- same as sill in the graph 
+
+###East area, zinc
+coordinates(east) =~Lat+Long
+spplot(east, zcol="Zn")
+
+geZn = gstat(id = c("Zn"), formula = Zn~1, data = east)
+vgeZn = variogram(geZn, width=2E-4,cutoff=2.4E-2)
+plot(vgeZn, plot.nu=TRUE)
+
+
+vgm_ezn = vgm(nugget=500, psill=2000, range=0.003, model="Exp")
+plot(vgeZn, vgm_ezn)
+
+vgm5 = fit.variogram(vgeZn, vgm_ezn)
+plot(vgeZn, vgm5)
+#parameter estimations: nugget=0, sill=500, range=0.002
+
+var(east$Zn) #1788.069 <-- lower as sill in the graph 
 
